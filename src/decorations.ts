@@ -294,8 +294,8 @@ export function doUpdateDecorations(editor: TextEditor, aggregatedDiagnostics: A
 						messageRange = diagnosticRange;
 					}
 				} else if ($config.followCursor === 'allLinesExceptActive') {
-					const lineStart = range.start.line;
-					const lineEnd = range.end.line;
+					const lineStart = range.start.line - $config.followCursorMore;
+					const lineEnd = range.end.line + $config.followCursorMore;
 
 					if (diagnosticRange.start.line >= lineStart && diagnosticRange.start.line <= lineEnd ||
 						diagnosticRange.end.line >= lineStart && diagnosticRange.end.line <= lineEnd) {
