@@ -2,15 +2,23 @@ import { $config, Global } from 'src/extension';
 import { doUpdateGutterDecorations, getGutterStyles } from 'src/gutter';
 import { AggregatedByLineDiagnostics } from 'src/types';
 import { replaceLinebreaks, truncateString } from 'src/utils';
-import { DecorationInstanceRenderOptions, DecorationOptions, DecorationRenderOptions, Diagnostic, languages, Range, TextEditor, ThemableDecorationAttachmentRenderOptions, ThemeColor, Uri, window } from 'vscode';
+import { DecorationInstanceRenderOptions, DecorationOptions, DecorationRenderOptions, Diagnostic, ExtensionContext, languages, Range, TextEditor, ThemableDecorationAttachmentRenderOptions, ThemeColor, Uri, window } from 'vscode';
 
 /**
  * Update all decoration styles: editor, gutter, status bar
  */
-export function setDecorationStyle() {
+export function setDecorationStyle(context: ExtensionContext) {
+	Global.decorationTypeError?.dispose();
+	Global.decorationTypeWarning?.dispose();
+	Global.decorationTypeInfo?.dispose();
+	Global.decorationTypeHint?.dispose();
+	Global.decorationTypeGutterError?.dispose();
+	Global.decorationTypeGutterWarning?.dispose();
+	Global.decorationTypeGutterInfo?.dispose();
+
 	let gutter;
 	if ($config.gutterIconsEnabled) {
-		gutter = getGutterStyles(Global.extensionContext);
+		gutter = getGutterStyles(context);
 
 		if (Global.renderGutterIconsAsSeparateDecoration) {
 			Global.decorationTypeGutterError = window.createTextEditorDecorationType({
@@ -116,7 +124,7 @@ export function setDecorationStyle() {
 		textDecoration: `none;${fontFamily};${fontSize};${padding};${borderRadius};${scrollbarHack}`,
 	};
 
-	Global.decorationRenderOptionsError = {
+	const decorationRenderOptionsError: DecorationRenderOptions = {
 		backgroundColor: errorBackground,
 		gutterIconSize: $config.gutterIconSize,
 		gutterIconPath: gutter?.errorIconPath,
@@ -135,7 +143,7 @@ export function setDecorationStyle() {
 		},
 		isWholeLine: true,
 	};
-	Global.decorationRenderOptionsWarning = {
+	const decorationRenderOptionsWarning: DecorationRenderOptions = {
 		backgroundColor: warningBackground,
 		gutterIconSize: $config.gutterIconSize,
 		gutterIconPath: gutter?.warningIconPath,
@@ -154,7 +162,7 @@ export function setDecorationStyle() {
 		},
 		isWholeLine: true,
 	};
-	Global.decorationRenderOptionsInfo = {
+	const decorationRenderOptionsInfo: DecorationRenderOptions = {
 		backgroundColor: infoBackground,
 		gutterIconSize: $config.gutterIconSize,
 		gutterIconPath: gutter?.infoIconPath,
@@ -173,7 +181,7 @@ export function setDecorationStyle() {
 		},
 		isWholeLine: true,
 	};
-	Global.decorationRenderOptionsHint = {
+	const decorationRenderOptionsHint: DecorationRenderOptions = {
 		backgroundColor: hintBackground,
 		after: {
 			...afterProps,
@@ -190,31 +198,31 @@ export function setDecorationStyle() {
 	};
 
 	if (!$config.messageEnabled) {
-		Global.decorationRenderOptionsError.backgroundColor = undefined;
-		Global.decorationRenderOptionsError.after = undefined;
-		Global.decorationRenderOptionsError.light!.backgroundColor = undefined;
-		Global.decorationRenderOptionsError.light!.after = undefined;
+		decorationRenderOptionsError.backgroundColor = undefined;
+		decorationRenderOptionsError.after = undefined;
+		decorationRenderOptionsError.light!.backgroundColor = undefined;
+		decorationRenderOptionsError.light!.after = undefined;
 
-		Global.decorationRenderOptionsWarning.backgroundColor = undefined;
-		Global.decorationRenderOptionsWarning.after = undefined;
-		Global.decorationRenderOptionsWarning.light!.backgroundColor = undefined;
-		Global.decorationRenderOptionsWarning.light!.after = undefined;
+		decorationRenderOptionsWarning.backgroundColor = undefined;
+		decorationRenderOptionsWarning.after = undefined;
+		decorationRenderOptionsWarning.light!.backgroundColor = undefined;
+		decorationRenderOptionsWarning.light!.after = undefined;
 
-		Global.decorationRenderOptionsInfo.backgroundColor = undefined;
-		Global.decorationRenderOptionsInfo.after = undefined;
-		Global.decorationRenderOptionsInfo.light!.backgroundColor = undefined;
-		Global.decorationRenderOptionsInfo.light!.after = undefined;
+		decorationRenderOptionsInfo.backgroundColor = undefined;
+		decorationRenderOptionsInfo.after = undefined;
+		decorationRenderOptionsInfo.light!.backgroundColor = undefined;
+		decorationRenderOptionsInfo.light!.after = undefined;
 
-		Global.decorationRenderOptionsHint.backgroundColor = undefined;
-		Global.decorationRenderOptionsHint.after = undefined;
-		Global.decorationRenderOptionsHint.light!.backgroundColor = undefined;
-		Global.decorationRenderOptionsHint.light!.after = undefined;
+		decorationRenderOptionsHint.backgroundColor = undefined;
+		decorationRenderOptionsHint.after = undefined;
+		decorationRenderOptionsHint.light!.backgroundColor = undefined;
+		decorationRenderOptionsHint.light!.after = undefined;
 	}
 
-	Global.decorationTypeError = window.createTextEditorDecorationType(Global.decorationRenderOptionsError);
-	Global.decorationTypeWarning = window.createTextEditorDecorationType(Global.decorationRenderOptionsWarning);
-	Global.decorationTypeInfo = window.createTextEditorDecorationType(Global.decorationRenderOptionsInfo);
-	Global.decorationTypeHint = window.createTextEditorDecorationType(Global.decorationRenderOptionsHint);
+	Global.decorationTypeError = window.createTextEditorDecorationType(decorationRenderOptionsError);
+	Global.decorationTypeWarning = window.createTextEditorDecorationType(decorationRenderOptionsWarning);
+	Global.decorationTypeInfo = window.createTextEditorDecorationType(decorationRenderOptionsInfo);
+	Global.decorationTypeHint = window.createTextEditorDecorationType(decorationRenderOptionsHint);
 
 	Global.statusBarMessage.statusBarColors = [statusBarErrorForeground, statusBarWarningForeground, statusBarInfoForeground, statusBarHintForeground];
 }
@@ -246,31 +254,12 @@ export function doUpdateDecorations(editor: TextEditor, aggregatedDiagnostics: A
 		const severity = diagnostic.severity;
 
 		if (isSeverityEnabled(severity)) {
-			/**
-			 * Usually, it's enough to use `decoration type`,
-			 * but decorations from different extensions can conflict.
-			 * This code puts global `decoration type` options into `decoration instance` options,
-			 * which is not great for perf, but probably the only workaround.
-			 *
-			 * https://github.com/usernamehw/vscode-error-lens/issues/25
-			 */
-			let decorationRenderOptions: DecorationRenderOptions = {};
-			switch (severity) {
-				case 0: decorationRenderOptions = Global.decorationRenderOptionsError; break;
-				case 1: decorationRenderOptions = Global.decorationRenderOptionsWarning; break;
-				case 2: decorationRenderOptions = Global.decorationRenderOptionsInfo; break;
-				case 3: decorationRenderOptions = Global.decorationRenderOptionsHint; break;
-			}
-
 			const message = diagnosticToInlineMessage($config.messageTemplate, diagnostic, aggregatedDiagnostic.length);
 
 			const decInstanceRenderOptions: DecorationInstanceRenderOptions = {
-				...decorationRenderOptions,
 				after: {
-					...decorationRenderOptions.after || {},
 					// If the message has thousands of characters - VSCode will render all of them offscreen and the editor will freeze.
-					contentText: $config.messageEnabled ?
-						truncateString($config.removeLinebreaks ? replaceLinebreaks(message) : message) : '',
+					contentText: $config.messageEnabled ? truncateString($config.removeLinebreaks ? replaceLinebreaks(message) : message, $config.messageMaxChars) : '',
 				},
 			};
 
@@ -347,7 +336,7 @@ export function updateDecorationsForAllVisibleEditors() {
 /**
  * Update decorations for one editor.
  */
-export function updateDecorationsForUri(uriToDecorate: Uri, editor?: TextEditor, range?: Range) {
+export function updateDecorationsForUri(uriToDecorate: Uri, editor?: TextEditor, groupedDiagnostics?: AggregatedByLineDiagnostics, range?: Range) {
 	if (editor === undefined) {
 		editor = window.activeTextEditor;
 	}
@@ -371,7 +360,7 @@ export function updateDecorationsForUri(uriToDecorate: Uri, editor?: TextEditor,
 		}
 	}
 
-	doUpdateDecorations(editor, getDiagnosticAndGroupByLine(uriToDecorate), range);
+	doUpdateDecorations(editor, groupedDiagnostics || groupDiagnosticsByLine(languages.getDiagnostics(uriToDecorate)), range);
 }
 
 /**
@@ -392,10 +381,8 @@ export function updateDecorationsForUri(uriToDecorate: Uri, editor?: TextEditor,
  * }
  * ```
  */
-export function getDiagnosticAndGroupByLine(uri: Uri): AggregatedByLineDiagnostics {
+export function groupDiagnosticsByLine(diagnostics: Diagnostic[]): AggregatedByLineDiagnostics {
 	const aggregatedDiagnostics: AggregatedByLineDiagnostics = Object.create(null);
-	const diagnostics = languages.getDiagnostics(uri);
-
 	for (const diagnostic of diagnostics) {
 		if (shouldExcludeDiagnostic(diagnostic)) {
 			continue;
@@ -414,12 +401,7 @@ export function getDiagnosticAndGroupByLine(uri: Uri): AggregatedByLineDiagnosti
 /**
  * Check multiple exclude sources if the diagnostic should not be shown.
  */
-export function shouldExcludeDiagnostic(diagnostic: Diagnostic) {
-	for (const regex of Global.excludeRegexp) {
-		if (regex.test(diagnostic.message)) {
-			return true;
-		}
-	}
+export function shouldExcludeDiagnostic(diagnostic: Diagnostic): boolean {
 	if (diagnostic.source) {
 		for (const source of Global.excludeSources) {
 			if (source === diagnostic.source) {
@@ -427,12 +409,17 @@ export function shouldExcludeDiagnostic(diagnostic: Diagnostic) {
 			}
 		}
 	}
+	for (const regex of Global.excludeRegexp) {
+		if (regex.test(diagnostic.message)) {
+			return true;
+		}
+	}
 	return false;
 }
 /**
  * `true` when diagnostic enabled in config & in temp variable
  */
-export function isSeverityEnabled(severity: number) {
+export function isSeverityEnabled(severity: number): boolean {
 	if (
 		severity === 0 && Global.configErrorEnabled ||
 		severity === 1 && Global.configWarningEnabled ||
@@ -446,7 +433,7 @@ export function isSeverityEnabled(severity: number) {
 /**
  * Generate inline message from template.
  */
-export function diagnosticToInlineMessage(template: string, diagnostic: Diagnostic, count: number) {
+export function diagnosticToInlineMessage(template: string, diagnostic: Diagnostic, count: number): string {
 	if (template === TemplateVars.message) {
 		// When default template - no need to use RegExps or other stuff.
 		return diagnostic.message;
@@ -489,6 +476,9 @@ export function diagnosticToInlineMessage(template: string, diagnostic: Diagnost
 	}
 }
 
+/**
+ * Variables to replace inside the `messageTemplate` & `statusBarMessageTemplate` settings.
+ */
 const enum TemplateVars {
 	message = '$message',
 	source = '$source',

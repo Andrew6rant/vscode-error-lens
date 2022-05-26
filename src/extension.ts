@@ -5,25 +5,21 @@ import { updateChangedActiveTextEditorListener, updateChangeDiagnosticListener, 
 import { StatusBarIcons } from 'src/statusBarIcons';
 import { StatusBarMessage } from 'src/statusBarMessage';
 import { Constants, ExtensionConfig } from 'src/types';
-import { DecorationRenderOptions, Disposable, ExtensionContext, TextEditorDecorationType, workspace } from 'vscode';
+import { Disposable, ExtensionContext, TextEditorDecorationType, workspace } from 'vscode';
+
 /**
  * All user settings.
  */
 export let $config: ExtensionConfig;
 
 /**
- * Global variables
+ * Global variables.
  */
 export class Global {
 	static configErrorEnabled = true;
 	static configWarningEnabled = true;
 	static configInfoEnabled = true;
 	static configHintEnabled = true;
-
-	static decorationRenderOptionsError: DecorationRenderOptions;
-	static decorationRenderOptionsWarning: DecorationRenderOptions;
-	static decorationRenderOptionsInfo: DecorationRenderOptions;
-	static decorationRenderOptionsHint: DecorationRenderOptions;
 
 	static decorationTypeError: TextEditorDecorationType;
 	static decorationTypeWarning: TextEditorDecorationType;
@@ -38,9 +34,13 @@ export class Global {
 	static onDidChangeVisibleTextEditors: Disposable | undefined;
 	static onDidSaveTextDocumentDisposable: Disposable | undefined;
 	static onDidCursorChangeDisposable: Disposable | undefined;
-	/** Status bar object. Handles all status bar stuff (for text message) */
+	/**
+	 * Status bar object. Handles all status bar stuff (for text message)
+	 */
 	static statusBarMessage: StatusBarMessage;
-	/** Status bar object. Handles all status bar stuff (for icons)  */
+	/**
+	 * Status bar object. Handles all status bar stuff (for icons)
+	 */
 	static statusBarIcons: StatusBarIcons;
 	/**
 	 * Editor icons can be rendered only for active line (to reduce the visual noise).
@@ -71,16 +71,11 @@ export class Global {
 	 * CustomDelay object. Handles updating decorations with a delay.
 	 */
 	static customDelay: CustomDelay | undefined;
-	/**
-	 * Saved reference for vscode `ExtensionContext` for this extension.
-	 */
-	static extensionContext: ExtensionContext;
 }
 
-export function activate(extensionContext: ExtensionContext) {
-	Global.extensionContext = extensionContext;
+export function activate(context: ExtensionContext) {
 	updateConfigAndEverything();
-	registerAllCommands(extensionContext);
+	registerAllCommands(context);
 
 	/**
 	 * - Update config
@@ -88,15 +83,15 @@ export function activate(extensionContext: ExtensionContext) {
 	 * - Update everything
 	 */
 	function updateConfigAndEverything() {
-		$config = workspace.getConfiguration().get(Constants.EXTENSION_NAME) as ExtensionConfig;
+		$config = workspace.getConfiguration().get(Constants.SettingsPrefix) as ExtensionConfig;
 		disposeEverything();
 		if ($config.enabled) {
-			updateEverything();
+			updateEverything(context);
 		}
 	}
 
-	extensionContext.subscriptions.push(workspace.onDidChangeConfiguration(e => {
-		if (!e.affectsConfiguration(Constants.EXTENSION_NAME)) {
+	context.subscriptions.push(workspace.onDidChangeConfiguration(e => {
+		if (!e.affectsConfiguration(Constants.SettingsPrefix)) {
 			return;
 		}
 		updateConfigAndEverything();
@@ -108,20 +103,33 @@ export function activate(extensionContext: ExtensionContext) {
  * - Update decorations for all visible editors
  * - Update all event listeners
  */
-export function updateEverything() {
+export function updateEverything(context: ExtensionContext) {
 	updateExclude();
-	Global.renderGutterIconsAsSeparateDecoration = $config.gutterIconsEnabled && $config.gutterIconsFollowCursorOverride && $config.followCursor !== 'allLines';
+	Global.renderGutterIconsAsSeparateDecoration = $config.gutterIconsEnabled &&
+		$config.gutterIconsFollowCursorOverride &&
+		$config.followCursor !== 'allLines';
 	Global.statusBarMessage?.dispose();
 	Global.statusBarIcons?.dispose();
 	Global.statusBarMessage = new StatusBarMessage(
 		$config.statusBarMessageEnabled,
 		$config.statusBarColorsEnabled,
-		$config.statusBarMessageType);
-	Global.statusBarIcons = new StatusBarIcons($config.statusBarIconsEnabled, $config.statusBarIconsAtZero, $config.statusBarIconsUseBackground);
-	setDecorationStyle();
+		$config.statusBarMessageType,
+		$config.statusBarMessagePriority,
+		$config.statusBarMessageAlignment,
+	);
+	Global.statusBarIcons = new StatusBarIcons(
+		$config.statusBarIconsEnabled,
+		$config.statusBarIconsAtZero,
+		$config.statusBarIconsUseBackground,
+		$config.statusBarIconsPriority,
+		$config.statusBarIconsAlignment,
+	);
+	setDecorationStyle(context);
 	updateConfigEnabledLevels();
 
 	updateDecorationsForAllVisibleEditors();
+
+	Global.statusBarIcons.updateText();
 
 	updateChangeDiagnosticListener();
 	updateChangeVisibleTextEditorsListener();

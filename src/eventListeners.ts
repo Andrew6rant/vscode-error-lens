@@ -2,10 +2,11 @@ import { CustomDelay } from 'src/CustomDelay';
 import { updateDecorationsForAllVisibleEditors, updateDecorationsForUri } from 'src/decorations';
 import { $config, Global } from 'src/extension';
 import { DiagnosticChangeEvent, languages, TextDocumentSaveReason, window, workspace } from 'vscode';
+
 /**
  * Update listener for when active editor changes.
  */
-export function updateChangedActiveTextEditorListener() {
+export function updateChangedActiveTextEditorListener(): void {
 	Global.onDidChangeActiveTextEditor?.dispose();
 
 	Global.onDidChangeActiveTextEditor = window.onDidChangeActiveTextEditor(textEditor => {
@@ -22,7 +23,7 @@ export function updateChangedActiveTextEditorListener() {
 /**
  * Update listener for when visible editors change.
  */
-export function updateChangeVisibleTextEditorsListener() {
+export function updateChangeVisibleTextEditorsListener(): void {
 	Global.onDidChangeVisibleTextEditors?.dispose();
 
 	Global.onDidChangeVisibleTextEditors = window.onDidChangeVisibleTextEditors(updateDecorationsForAllVisibleEditors);
@@ -30,10 +31,10 @@ export function updateChangeVisibleTextEditorsListener() {
 /**
  * Update listener for when language server (or extension) sends diagnostic change events.
  */
-export function updateChangeDiagnosticListener() {
+export function updateChangeDiagnosticListener(): void {
 	Global.onDidChangeDiagnosticsDisposable?.dispose();
 
-	function onChangedDiagnostics(diagnosticChangeEvent: DiagnosticChangeEvent) {
+	function onChangedDiagnostics(diagnosticChangeEvent: DiagnosticChangeEvent): void {
 		// Many URIs can change - we only need to decorate visible editors
 		for (const uri of diagnosticChangeEvent.uris) {
 			for (const editor of window.visibleTextEditors) {
@@ -42,9 +43,7 @@ export function updateChangeDiagnosticListener() {
 				}
 			}
 		}
-		if ($config.statusBarIconsEnabled) {
-			Global.statusBarIcons.updateText();
-		}
+		Global.statusBarIcons.updateText();
 	}
 	if ($config.onSave) {
 		Global.onDidChangeDiagnosticsDisposable = languages.onDidChangeDiagnostics(e => {
@@ -64,7 +63,7 @@ export function updateChangeDiagnosticListener() {
 /**
  * Update listener for when active selection (cursor) moves.
  */
-export function updateCursorChangeListener() {
+export function updateCursorChangeListener(): void {
 	Global.onDidCursorChangeDisposable?.dispose();
 
 	if (
@@ -81,7 +80,7 @@ export function updateCursorChangeListener() {
 				selection.isEmpty &&
 				lastPositionLine !== selection.active.line
 			) {
-				updateDecorationsForUri(e.textEditor.document.uri, e.textEditor, selection);
+				updateDecorationsForUri(e.textEditor.document.uri, e.textEditor, undefined, selection);
 				lastPositionLine = e.selections[0].active.line;
 			}
 		});
@@ -92,7 +91,7 @@ export function updateCursorChangeListener() {
  *
  * Editor `files.autoSave` is ignored.
  */
-export function updateOnSaveListener() {
+export function updateOnSaveListener(): void {
 	Global.onDidSaveTextDocumentDisposable?.dispose();
 
 	if (!$config.onSave) {

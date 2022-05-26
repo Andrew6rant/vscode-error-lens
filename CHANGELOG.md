@@ -1,3 +1,13 @@
+## 3.5.1 `26 May 2022`
+
+- 🐛 Fix broken **`errorLens.delay`** setting #121
+
+## 3.5.0 `18 May 2022`
+
+- ✨ Control status bar items alignment and priority. Settings: **`errorLens.statusBarIconsAlignment`**, **`errorLens.statusBarIconsPriority`**, **`errorLens.statusBarMessageAlignment`**, **`errorLens.statusBarMessagePriority`**
+- ✨ Add "allLinesExceptActive" option to the **`errorLens.followCursor`** setting #115
+- 🔨 Refactor a bit to improve performance
+
 ## 3.4.2 `09 Mar 2022`
 
 - ✨ Add option to disable decorations on diff view **`"errorLens.enableOnDiffView"`** #72
